@@ -1,0 +1,861 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>Bot Traffic Analyzer — Bacancy Technology</title>
+<script src="https://cdnjs.cloudflare.com/ajax/libs/Chart.js/4.4.1/chart.umd.min.js"></script>
+<link href="https://fonts.googleapis.com/css2?family=Montserrat:wght@300;400;500;600;700;800;900&display=swap" rel="stylesheet">
+<style>
+:root{
+  --orange:#F06F21;--orange-dim:rgba(240,111,33,0.15);
+  --bg:#1A1A1A;--bg2:#262626;--bg3:#2f2f2f;
+  --border:rgba(255,255,255,0.08);
+  --text:#FFFFFF;--text-muted:rgba(255,255,255,0.42);--text-dim:rgba(255,255,255,0.7);
+  --success:#22c55e;--warn:#f59e0b;--danger:#ef4444;--info:#3b82f6;--radius:10px;
+}
+*{box-sizing:border-box;margin:0;padding:0}
+body{font-family:'Montserrat',sans-serif;background:var(--bg);color:var(--text);min-height:100vh;font-size:14px}
+
+/* HEADER */
+.header{background:var(--bg);border-bottom:1px solid var(--border);padding:0 28px;display:flex;align-items:center;justify-content:space-between;height:62px;position:sticky;top:0;z-index:100}
+.header-title{font-size:10px;color:var(--text-muted);font-weight:700;letter-spacing:1.5px;text-transform:uppercase}
+
+/* UPLOAD SCREEN */
+#uploadScreen{padding:48px 28px;max-width:960px;margin:0 auto}
+.upload-heading{font-size:24px;font-weight:800;margin-bottom:6px}
+.upload-sub{font-size:13px;color:var(--text-muted);margin-bottom:36px;line-height:1.6}
+.upload-cards{display:grid;grid-template-columns:1fr 1fr;gap:16px;margin-bottom:24px}
+@media(max-width:680px){.upload-cards{grid-template-columns:1fr}}
+.upload-card{background:var(--bg2);border:1px solid var(--border);border-radius:var(--radius);padding:22px}
+.upload-card-title{font-size:12px;font-weight:700;text-transform:uppercase;letter-spacing:0.7px;color:var(--orange);margin-bottom:6px;display:flex;align-items:center;gap:8px}
+.badge-req{font-size:9px;font-weight:700;padding:2px 7px;border-radius:10px;background:rgba(239,68,68,0.2);color:var(--danger)}
+.badge-opt{font-size:9px;font-weight:700;padding:2px 7px;border-radius:10px;background:var(--bg3);color:var(--text-muted)}
+.upload-card-desc{font-size:11px;color:var(--text-muted);margin-bottom:14px;line-height:1.6}
+.drop-zone{border:2px dashed var(--border);border-radius:8px;padding:24px 18px;text-align:center;cursor:pointer;transition:all .2s;background:var(--bg3);min-height:110px;display:flex;flex-direction:column;align-items:center;justify-content:center;gap:6px}
+.drop-zone:hover,.drop-zone.drag{border-color:var(--orange);background:rgba(240,111,33,0.05)}
+.drop-zone-icon{font-size:28px;opacity:.45}
+.drop-zone-text{font-size:12px;color:var(--text-muted);line-height:1.7}
+.drop-zone-text strong{color:var(--orange)}
+.file-list{display:flex;flex-direction:column;gap:5px;margin-top:10px;width:100%}
+.file-chip{display:flex;align-items:center;justify-content:space-between;gap:6px;background:rgba(240,111,33,0.1);border:1px solid rgba(240,111,33,0.25);border-radius:5px;padding:4px 10px;font-size:11px;color:var(--orange);font-weight:600}
+.chip-remove{cursor:pointer;color:var(--text-muted);font-size:15px;line-height:1;flex-shrink:0}
+.chip-remove:hover{color:var(--danger)}
+.gsc-note{font-size:11px;margin-top:8px;font-weight:600}
+.gsc-ok{color:var(--success)} .gsc-err{color:var(--danger)}
+
+/* PROCESS AREA */
+.process-area{background:var(--bg2);border:1px solid var(--border);border-radius:var(--radius);padding:20px 24px;display:flex;align-items:center;justify-content:space-between;flex-wrap:wrap;gap:14px}
+.process-info strong{font-size:14px;font-weight:700}
+.process-info p{font-size:11px;color:var(--text-muted);margin-top:3px}
+.btn-process{background:var(--orange);color:#fff;border:none;border-radius:8px;padding:12px 32px;font-size:14px;font-weight:800;font-family:'Montserrat',sans-serif;cursor:pointer;transition:opacity .15s;display:flex;align-items:center;gap:8px}
+.btn-process:hover:not(:disabled){opacity:.87}
+.btn-process:disabled{opacity:.35;cursor:not-allowed}
+
+/* PROGRESS */
+#progressWrap{display:none;background:var(--bg2);border:1px solid var(--border);border-radius:var(--radius);padding:20px 24px;margin-top:16px}
+.prog-label{font-size:12px;font-weight:700;color:var(--text-dim);margin-bottom:10px}
+.prog-track{background:var(--bg3);border-radius:6px;height:8px;overflow:hidden;margin-bottom:10px}
+.prog-bar{height:100%;background:var(--orange);border-radius:6px;width:0%;transition:width .3s ease}
+.prog-log{font-size:11px;color:var(--text-muted);max-height:90px;overflow-y:auto;line-height:1.9}
+
+/* DASHBOARD */
+#dashboard{display:none}
+.filter-bar{background:var(--bg2);border-bottom:1px solid var(--border);padding:10px 28px;display:flex;align-items:center;gap:12px;flex-wrap:wrap}
+.ctrl-label{font-size:10px;font-weight:700;color:var(--text-muted);text-transform:uppercase;letter-spacing:0.7px;white-space:nowrap}
+select,input[type=date]{background:var(--bg3);border:1px solid var(--border);color:var(--text);border-radius:6px;padding:5px 9px;font-size:12px;font-family:'Montserrat',sans-serif;outline:none;cursor:pointer}
+select:focus,input[type=date]:focus{border-color:var(--orange)}
+.btn{background:var(--orange);color:#fff;border:none;border-radius:6px;padding:6px 14px;font-size:12px;font-weight:700;font-family:'Montserrat',sans-serif;cursor:pointer;transition:opacity .15s;white-space:nowrap}
+.btn:hover{opacity:.85}
+.btn-ghost{background:transparent;border:1px solid var(--border);color:var(--text-dim)}
+.btn-ghost:hover{border-color:var(--orange);color:var(--orange)}
+.btn-sm{padding:4px 10px;font-size:11px}
+.divider{width:1px;height:24px;background:var(--border);flex-shrink:0}
+.range-badge{font-size:10px;color:var(--orange);font-weight:700;background:rgba(240,111,33,0.12);padding:3px 9px;border-radius:20px}
+
+.main{padding:18px 28px;max-width:1700px;margin:0 auto}
+.summary-row{display:grid;grid-template-columns:repeat(auto-fit,minmax(165px,1fr));gap:12px;margin-bottom:18px}
+.card{background:var(--bg2);border:1px solid var(--border);border-radius:var(--radius);padding:16px 18px;position:relative;overflow:hidden}
+.card::before{content:'';position:absolute;top:0;left:0;right:0;height:2px;background:var(--orange)}
+.card-label{font-size:10px;font-weight:700;text-transform:uppercase;letter-spacing:0.8px;color:var(--text-muted);margin-bottom:7px}
+.card-value{font-size:26px;font-weight:800;line-height:1}
+.card-sub{font-size:10px;color:var(--text-muted);margin-top:4px}
+.card-icon{position:absolute;right:14px;top:50%;transform:translateY(-50%);font-size:22px;opacity:.08}
+
+.section{background:var(--bg2);border:1px solid var(--border);border-radius:var(--radius);padding:20px;margin-bottom:16px}
+.section-header{display:flex;align-items:flex-start;justify-content:space-between;margin-bottom:14px;flex-wrap:wrap;gap:8px}
+.section-title{font-size:13px;font-weight:700}
+.section-desc{font-size:10px;color:var(--text-muted);margin-top:3px;line-height:1.5}
+.section-filters{display:flex;gap:7px;align-items:center;flex-wrap:wrap}
+.chart-wrap{position:relative;width:100%;height:270px}
+
+.bot-filter-wrap{margin-bottom:12px}
+.bot-filter-actions{display:flex;gap:6px;margin-bottom:7px}
+.bot-filter{display:flex;gap:5px;flex-wrap:wrap}
+.bot-pill{padding:3px 10px;border-radius:20px;border:1px solid var(--border);font-size:11px;font-weight:600;cursor:pointer;transition:all .15s;color:var(--text-muted)}
+.bot-pill.active{color:#fff;background:var(--pill-c,var(--orange));border-color:var(--pill-c,var(--orange))}
+.bot-pill:hover:not(.active){border-color:rgba(255,255,255,0.25);color:var(--text)}
+
+.two-col{display:grid;grid-template-columns:1fr 1fr;gap:16px;margin-bottom:16px}
+@media(max-width:900px){.two-col{grid-template-columns:1fr}}
+
+.status-list{display:flex;flex-direction:column;gap:8px;margin-top:4px}
+.status-row-item{display:flex;align-items:center;gap:9px}
+.status-code{font-size:12px;font-weight:800;min-width:34px}
+.status-bar-track{flex:1;background:var(--bg3);border-radius:4px;height:6px;overflow:hidden}
+.status-bar-fill{height:100%;border-radius:4px;transition:width .5s ease}
+.status-count{font-size:11px;color:var(--text-muted);min-width:55px;text-align:right;font-weight:600}
+
+.tl-wrap{max-height:360px;overflow-y:auto;border-radius:8px;border:1px solid var(--border)}
+.tl-wrap::-webkit-scrollbar{width:4px}
+.tl-wrap::-webkit-scrollbar-thumb{background:var(--orange);border-radius:3px}
+.data-table{width:100%;border-collapse:collapse;font-size:12px}
+.data-table th{text-align:left;padding:8px 11px;border-bottom:1px solid var(--border);font-size:10px;font-weight:700;text-transform:uppercase;letter-spacing:0.7px;color:var(--text-muted);position:sticky;top:0;background:var(--bg2);z-index:1}
+.data-table td{padding:6px 11px;border-bottom:1px solid rgba(255,255,255,0.03)}
+.data-table tr:hover td{background:rgba(240,111,33,0.04)}
+.data-table th.sortable{cursor:pointer;user-select:none}
+.data-table th.sortable:hover{color:var(--orange)}
+.sort-arr{margin-left:3px;opacity:.4;font-size:9px}
+.sort-arr.on{opacity:1;color:var(--orange)}
+
+.badge{display:inline-block;padding:2px 6px;border-radius:3px;font-size:10px;font-weight:700}
+.badge-page{background:rgba(59,130,246,0.18);color:#93c5fd}
+.badge-resource{background:rgba(168,85,247,0.18);color:#d8b4fe}
+
+.legend{display:flex;flex-wrap:wrap;gap:9px;margin-top:9px}
+.legend-item{display:flex;align-items:center;gap:5px;font-size:11px;color:var(--text-dim)}
+.legend-dot{width:8px;height:8px;border-radius:50%}
+
+.pagination{display:flex;gap:5px;align-items:center;justify-content:flex-end;margin-top:10px}
+.page-btn{background:var(--bg3);border:1px solid var(--border);color:var(--text-dim);border-radius:5px;padding:3px 9px;font-size:11px;cursor:pointer;font-family:'Montserrat',sans-serif}
+.page-btn.active{background:var(--orange);border-color:var(--orange);color:#fff;font-weight:700}
+.page-btn:hover:not(.active){border-color:var(--orange);color:var(--orange)}
+.page-info{font-size:10px;color:var(--text-muted);margin-right:6px}
+.empty-state{text-align:center;padding:28px;color:var(--text-muted);font-size:12px}
+.setup-input{background:var(--bg3);border:1px solid var(--border);color:var(--text);border-radius:6px;padding:6px 9px;font-size:12px;font-family:'Montserrat',sans-serif;outline:none}
+.setup-input:focus{border-color:var(--orange)}
+::-webkit-scrollbar{width:5px;height:5px}
+::-webkit-scrollbar-track{background:var(--bg)}
+::-webkit-scrollbar-thumb{background:var(--bg3);border-radius:3px}
+</style>
+</head>
+<body>
+
+<!-- HEADER -->
+<header class="header">
+  <svg xmlns="http://www.w3.org/2000/svg" xmlns:xlink="http://www.w3.org/1999/xlink" viewBox="0 0 230.58 48.55" height="30"><defs><style>.la{fill:none;clip-rule:evenodd}.lb{fill:#f58220}.lb,.ld{fill-rule:evenodd}.lc{clip-path:url(#la)}.ld,.le{fill:#fff}</style><clipPath id="la" transform="translate(0 1.93)"><path class="la" d="M23.27,0A23.31,23.31,0,1,1,0,23.31,23.29,23.29,0,0,1,23.27,0Z"/></clipPath></defs><path class="lb" d="M23.27,0A23.31,23.31,0,1,1,0,23.31,23.29,23.29,0,0,1,23.27,0Z" transform="translate(0 1.93)"/><g class="lc"><path class="ld" d="M8.8,27.9c0,6.33,3.9,10.7,10.59,13.67V-1.93L8.8-1.79V27.9ZM23.11,24V14.3c18.28-3.05,24.88,26.34.08,27.25V32.12c8.1.51,8.64-9.07-.08-8.09Z" transform="translate(0 1.93)"/></g><path class="le" d="M92.7,9.24a1,1,0,0,0-1.11-.78H87a1,1,0,0,0-1.11.78l-8,28.13c-.13.52,0,.79.46.79h3.32c.43,0,.71-.27.83-.79l1.76-6H94.36l1.75,6a1.25,1.25,0,0,0,.26.62.8.8,0,0,0,.58.17h3.27c.47,0,.64-.27.51-.79ZM85.12,27.67l4.07-14.78h.18l4.11,14.78Z" transform="translate(0 1.93)"/><path class="le" d="M70.75,23a4.93,4.93,0,0,0,3.79-5.17V15.53a6.93,6.93,0,0,0-1.9-5.22,7.28,7.28,0,0,0-5.31-1.85H56.39a.69.69,0,0,0-.79.78V37.37a.7.7,0,0,0,.79.79H67.75A7.21,7.21,0,0,0,73,36.31a6.93,6.93,0,0,0,1.9-5.22v-3a5.29,5.29,0,0,0-1.18-3.6A4.68,4.68,0,0,0,70.75,23ZM60.08,12.75c0-.3.17-.46.51-.46h6.1q3.41,0,3.41,3.33v2.12q0,3.38-3.51,3.37h-6c-.34,0-.51-.15-.51-.46ZM70.52,31c0,2.21-1.16,3.32-3.46,3.32H60.59c-.34,0-.51-.15-.51-.46V25.27c0-.31.17-.46.51-.46h6.28q3.64,0,3.65,3.32Z" transform="translate(0 1.93)"/><path class="le" d="M116.26,8.46H110.9a7.15,7.15,0,0,0-5.29,1.87,7.19,7.19,0,0,0-1.87,5.29V31a7.18,7.18,0,0,0,1.87,5.26,7.12,7.12,0,0,0,5.29,1.9h5.36a7.11,7.11,0,0,0,5.26-1.9,7.07,7.07,0,0,0,1.9-5.26V28.78a.74.74,0,0,0-.83-.83h-2.91c-.53,0-.79.28-.79.83v2q0,3.42-3.32,3.42h-4q-3.33,0-3.33-3.42v-15c0-2.28,1.11-3.41,3.33-3.41h4c2.21,0,3.32,1.13,3.32,3.41v2c0,.55.26.83.79.83h2.91a.74.74,0,0,0,.83-.83V15.62a7.08,7.08,0,0,0-1.9-5.29A7.14,7.14,0,0,0,116.26,8.46Z" transform="translate(0 1.93)"/><path class="le" d="M140.75,9.24a1,1,0,0,0-1.11-.78H135a1,1,0,0,0-1.11.78l-8,28.13c-.12.52,0,.79.47.79h3.32c.43,0,.71-.27.83-.79l1.76-6h10.16l1.75,6a1.16,1.16,0,0,0,.26.62.78.78,0,0,0,.57.17h3.28c.47,0,.63-.27.51-.79Zm-7.58,18.43,4.07-14.78h.18l4.11,14.78Z" transform="translate(0 1.93)"/><path class="le" d="M190.13,8.46h-5.35a7.15,7.15,0,0,0-5.29,1.87,7.15,7.15,0,0,0-1.87,5.29V31a7.14,7.14,0,0,0,1.87,5.26,7.12,7.12,0,0,0,5.29,1.9h5.35a7.13,7.13,0,0,0,5.27-1.9A7.1,7.1,0,0,0,197.29,31V28.78a.73.73,0,0,0-.83-.83h-2.91c-.52,0-.78.28-.78.83v2q0,3.42-3.33,3.42h-4q-3.31,0-3.32-3.42v-15c0-2.28,1.11-3.41,3.32-3.41h4c2.22,0,3.33,1.13,3.33,3.41v2c0,.55.26.83.78.83h2.91a.73.73,0,0,0,.83-.83V15.62a7.12,7.12,0,0,0-1.89-5.29A7.16,7.16,0,0,0,190.13,8.46Z" transform="translate(0 1.93)"/><path class="le" d="M220.67,8.46H217c-.44,0-.74.26-.93.78L210.46,22h-.27L204.51,9.24q-.33-.78-.93-.78h-3.69a.62.62,0,0,0-.51.23.54.54,0,0,0,0,.6L208,27.16V37.37a.7.7,0,0,0,.78.79h3a.7.7,0,0,0,.78-.79V27.16l8.64-17.87a.56.56,0,0,0,0-.6A.61.61,0,0,0,220.67,8.46Z" transform="translate(0 1.93)"/><path class="le" d="M171.65,8.46h-2.86a.69.69,0,0,0-.79.78V29.06h-.18L156.64,9a1,1,0,0,0-1-.51H153a.7.7,0,0,0-.79.78V37.37a.7.7,0,0,0,.79.79h2.86a.7.7,0,0,0,.79-.79V17.56h.18L168,37.42a1.36,1.36,0,0,0,1.2.74h2.49a.7.7,0,0,0,.79-.79V9.24A.7.7,0,0,0,171.65,8.46Z" transform="translate(0 1.93)"/><path class="le" d="M228.33,11.9a1.28,1.28,0,0,0-.31-.24.89.89,0,0,0,.56-.26.75.75,0,0,0,.19-.53.84.84,0,0,0-.12-.45.71.71,0,0,0-.33-.27,2.12,2.12,0,0,0-.67-.08h-1.2v2.84H227V11.73h.12a1,1,0,0,1,.29,0,.44.44,0,0,1,.17.12,4,4,0,0,1,.3.41l.41.62H229l-.35-.55A2.6,2.6,0,0,0,228.33,11.9Zm-.88-.63H227v-.72h.87a.37.37,0,0,1,.21.12.32.32,0,0,1,.08.23.37.37,0,0,1-.06.21.28.28,0,0,1-.16.12A2.52,2.52,0,0,1,227.45,11.27Z" transform="translate(0 1.93)"/><path class="le" d="M227.56,8.47a3,3,0,1,0,3,3A3,3,0,0,0,227.56,8.47Zm0,5.38a2.36,2.36,0,1,1,2.36-2.36A2.36,2.36,0,0,1,227.56,13.85Z" transform="translate(0 1.93)"/></svg>
+  <div class="header-title">Bot Traffic Analyzer</div>
+  <div style="font-size:10px;color:var(--text-muted);font-weight:600" id="headerStatus">No files loaded</div>
+</header>
+
+<!-- UPLOAD SCREEN -->
+<div id="uploadScreen">
+  <div class="upload-heading">Upload your files to get started</div>
+  <div class="upload-sub">Log files are processed entirely in your browser — no data leaves your machine.</div>
+
+  <div class="upload-cards">
+
+    <!-- LOG FILES -->
+    <div class="upload-card">
+      <div class="upload-card-title">📂 Upload Log Files <span class="badge-req">REQUIRED</span></div>
+      <div class="upload-card-desc">Upload one or more <strong style="color:var(--text)">.realip</strong> access log files. Multiple files covering different dates are supported.</div>
+      <div class="drop-zone" id="logZone"
+        onclick="document.getElementById('logInput').click()"
+        ondragover="event.preventDefault();this.classList.add('drag')"
+        ondragleave="this.classList.remove('drag')"
+        ondrop="event.preventDefault();this.classList.remove('drag');addLogFiles(event.dataTransfer.files)">
+        <div class="drop-zone-icon">📁</div>
+        <div class="drop-zone-text">Drag &amp; drop <strong>.realip</strong> files here<br>or <strong>click to browse</strong></div>
+        <div class="file-list" id="logFileList"></div>
+      </div>
+      <input type="file" id="logInput" multiple accept=".realip" style="display:none" onchange="addLogFiles(this.files)">
+    </div>
+
+    <!-- GSC -->
+    <div class="upload-card">
+      <div class="upload-card-title">📊 Google Search Console <span class="badge-opt">OPTIONAL</span></div>
+      <div class="upload-card-desc">Upload your GSC Pages export (.xlsx) to add Clicks, Impressions and Position data to the URL table.</div>
+      <div class="drop-zone" id="gscZone"
+        onclick="document.getElementById('gscInput').click()"
+        ondragover="event.preventDefault();this.classList.add('drag')"
+        ondragleave="this.classList.remove('drag')"
+        ondrop="event.preventDefault();this.classList.remove('drag');addGSCFile(event.dataTransfer.files)">
+        <div class="drop-zone-icon">📊</div>
+        <div class="drop-zone-text">Drag &amp; drop <strong>.xlsx</strong> GSC export<br>or <strong>click to browse</strong></div>
+        <div id="gscChip" style="margin-top:8px;width:100%"></div>
+      </div>
+      <input type="file" id="gscInput" accept=".xlsx" style="display:none" onchange="addGSCFile(this.files)">
+    </div>
+
+  </div>
+
+  <!-- PROCESS -->
+  <div class="process-area">
+    <div class="process-info">
+      <strong id="processTitle">Add log files above to continue</strong>
+      <p id="processSub">Processing runs entirely in your browser. No data is sent anywhere.</p>
+    </div>
+    <button class="btn-process" id="processBtn" onclick="startProcessing()" disabled>
+      ⚡ Process Files
+    </button>
+  </div>
+
+  <!-- PROGRESS -->
+  <div id="progressWrap">
+    <div class="prog-label" id="progLabel">Processing...</div>
+    <div class="prog-track"><div class="prog-bar" id="progBar"></div></div>
+    <div class="prog-log" id="progLog"></div>
+  </div>
+</div>
+
+<!-- DASHBOARD -->
+<div id="dashboard">
+
+  <div class="filter-bar">
+    <span class="ctrl-label">Date Range</span>
+    <span style="font-size:11px;color:var(--text-muted)">From</span>
+    <input type="date" id="dateFrom">
+    <span style="font-size:11px;color:var(--text-muted)">To</span>
+    <input type="date" id="dateTo">
+    <button class="btn" onclick="applyDateFilter()">Apply</button>
+    <button class="btn btn-ghost" onclick="resetDateFilter()">Reset</button>
+    <div class="divider"></div>
+    <span class="ctrl-label">Bot</span>
+    <select id="botSelect"><option value="all">All Bots</option></select>
+    <button class="btn" onclick="applyBotFilter()">Apply</button>
+    <button class="btn btn-ghost" onclick="resetBotFilter()">Reset</button>
+    <div class="range-badge" id="rangeDisplay"></div>
+    <div style="margin-left:auto">
+      <button class="btn btn-ghost btn-sm" onclick="goBack()">↩ Upload New Files</button>
+    </div>
+  </div>
+
+  <div class="main">
+
+    <div class="summary-row">
+      <div class="card"><div class="card-icon">📄</div><div class="card-label">Bot Hits on Pages</div><div class="card-value" id="totPages">—</div><div class="card-sub">HTML pages only</div></div>
+      <div class="card"><div class="card-icon">🗂</div><div class="card-label">Bot Hits on Resources</div><div class="card-value" id="totRes">—</div><div class="card-sub">JS, CSS, images, fonts</div></div>
+      <div class="card"><div class="card-icon">🤖</div><div class="card-label">Unique Bots</div><div class="card-value" id="totBots">—</div><div class="card-sub">Active in period</div></div>
+      <div class="card"><div class="card-icon">📅</div><div class="card-label">Days Covered</div><div class="card-value" id="totDays">—</div><div class="card-sub" id="dateSpan">—</div></div>
+      <div class="card"><div class="card-icon">🔝</div><div class="card-label">Top Bot</div><div class="card-value" id="topBot" style="font-size:15px;padding-top:4px">—</div><div class="card-sub" id="topBotCount">—</div></div>
+    </div>
+
+    <div class="section">
+      <div class="section-header">
+        <div><div class="section-title">Bot Hits by Bot Name</div><div class="section-desc">Hourly breakdown for the selected period. Toggle bots using the pills.</div></div>
+      </div>
+      <div class="bot-filter-wrap">
+        <div class="bot-filter-actions">
+          <button class="btn btn-ghost btn-sm" onclick="selectAll()">Select All</button>
+          <button class="btn btn-ghost btn-sm" onclick="deselectAll()">Deselect All</button>
+        </div>
+        <div class="bot-filter" id="botPills"></div>
+      </div>
+      <div class="chart-wrap"><canvas id="chartLine"></canvas></div>
+      <div class="legend" id="chartLegend"></div>
+    </div>
+
+    <div class="section">
+      <div class="section-header">
+        <div><div class="section-title">Bot Hits by Page Type</div><div class="section-desc">Sum of hits broken down by page group (first URL segment).</div></div>
+        <div class="section-filters">
+          <select id="ptBot" onchange="renderPageType()"><option value="all">All Bots</option></select>
+          <select id="ptFilter" onchange="renderPageType()"><option value="all">All Page Types</option></select>
+        </div>
+      </div>
+      <div class="chart-wrap"><canvas id="chartBar"></canvas></div>
+    </div>
+
+    <div class="two-col">
+      <div class="section" style="margin-bottom:0">
+        <div class="section-header"><div><div class="section-title">Pages — Status Codes</div></div></div>
+        <div class="status-list" id="pageStatus"></div>
+      </div>
+      <div class="section" style="margin-bottom:0">
+        <div class="section-header"><div><div class="section-title">Resources — Status Codes</div></div></div>
+        <div class="status-list" id="resStatus"></div>
+      </div>
+    </div>
+
+    <div class="section" style="margin-top:16px">
+      <div class="section-header"><div><div class="section-title">Bot Hits Timeline</div><div class="section-desc">10-minute resolution of total bot activity.</div></div></div>
+      <div class="chart-wrap"><canvas id="chartTimeline"></canvas></div>
+    </div>
+
+    <div class="section">
+      <div class="section-header">
+        <div><div class="section-title">URL Intelligence</div><div class="section-desc">Bot hits, GSC data, status and crawl span per URL. Click column headers to sort.</div></div>
+        <div class="section-filters">
+          <input class="setup-input" id="urlSearch" placeholder="Filter by URL..." style="width:190px" oninput="renderURLTable()">
+          <select id="urlStatus" onchange="renderURLTable()">
+            <option value="all">All Statuses</option>
+            <option value="200">200</option><option value="301">301</option>
+            <option value="302">302</option><option value="404">404</option><option value="500+">500+</option>
+          </select>
+          <button class="btn btn-ghost btn-sm" id="exportBtn" onclick="exportExcel()" style="border-color:var(--success);color:var(--success)">⬇ Export Excel</button>
+        </div>
+      </div>
+      <div class="tl-wrap">
+        <table class="data-table">
+          <thead><tr>
+            <th class="sortable" onclick="sortTable('url')">URL <span class="sort-arr" id="sa-url"></span></th>
+            <th class="sortable" onclick="sortTable('hits')" style="min-width:75px">Bot Hits <span class="sort-arr on" id="sa-hits">▼</span></th>
+            <th style="min-width:62px">Status</th>
+            <th class="sortable" onclick="sortTable('clicks')" style="min-width:62px">Clicks <span class="sort-arr" id="sa-clicks"></span></th>
+            <th class="sortable" onclick="sortTable('impressions')" style="min-width:86px">Impressions <span class="sort-arr" id="sa-impressions"></span></th>
+            <th class="sortable" onclick="sortTable('position')" style="min-width:68px">Avg Pos <span class="sort-arr" id="sa-position"></span></th>
+            <th class="sortable" onclick="sortTable('crawl_span_mins')" style="min-width:88px">Crawl Span <span class="sort-arr" id="sa-crawl_span_mins"></span></th>
+          </tr></thead>
+          <tbody id="urlBody"></tbody>
+        </table>
+      </div>
+      <div class="pagination" id="urlPages"></div>
+    </div>
+
+    <div class="section">
+      <div class="section-header">
+        <div><div class="section-title">Recent Bot Activity</div><div class="section-desc">Latest bot requests, sorted newest first.</div></div>
+        <div class="section-filters">
+          <select id="tlBot" onchange="renderActivity()"><option value="all">All Bots</option></select>
+          <select id="tlType" onchange="renderActivity()">
+            <option value="all">All Types</option>
+            <option value="page">Pages only</option>
+            <option value="resource">Resources only</option>
+          </select>
+        </div>
+      </div>
+      <div class="tl-wrap">
+        <table class="data-table">
+          <thead><tr><th>Timestamp</th><th>Bot</th><th>Type</th><th>Status</th><th>Path</th></tr></thead>
+          <tbody id="activityBody"></tbody>
+        </table>
+      </div>
+    </div>
+
+  </div>
+</div>
+
+<script>
+// ── BOT RULES ──
+const BOT_RULES=[
+  ['Googlebot',['Googlebot','Google-NotebookLM','Google-InspectionTool']],
+  ['Bingbot',['bingbot']],['Semrush',['SemrushBot','SiteAuditBot']],
+  ['Meta/Facebook',['meta-externalagent','facebookexternalhit']],
+  ['ChatGPT',['ChatGPT-User','GPTBot']],['Amazonbot',['Amazonbot','Amazon-Route53']],
+  ['UptimeRobot',['UptimeRobot']],['Uptime-Kuma',['Uptime-Kuma']],
+  ['DotBot',['DotBot']],['MJ12bot',['MJ12bot']],['AhrefsBot',['AhrefsBot']],
+  ['WPMU',['WPMU DEV']],['PetalBot',['PetalBot']],['YandexBot',['YandexBot']]
+];
+const BOT_COLORS={'Googlebot':'#4285F4','Bingbot':'#00B7C3','Semrush':'#FF6B2B','Meta/Facebook':'#1877F2','ChatGPT':'#10A37F','Amazonbot':'#FF9900','UptimeRobot':'#8B5CF6','Uptime-Kuma':'#EC4899','DotBot':'#F59E0B','MJ12bot':'#6366F1','AhrefsBot':'#EF4444','WPMU':'#22C55E','PetalBot':'#14B8A6','YandexBot':'#E11D48'};
+function botColor(b){return BOT_COLORS[b]||('#'+Math.abs(b.split('').reduce((h,c)=>Math.imul(31,h)+c.charCodeAt(0)|0,0)&0xFFFFFF).toString(16).padStart(6,'0'));}
+function scColor(c){const n=parseInt(c);if(n<300)return'#22c55e';if(n<400)return'#3b82f6';if(n<500)return'#f59e0b';return'#ef4444';}
+function fmtN(n){return n==null?'—':Number(n).toLocaleString();}
+function crawlStr(m){if(!m)return'<1 min';if(m<60)return m+'m';return Math.floor(m/60)+'h '+(m%60)+'m';}
+function urlPath(u){try{return new URL(u).pathname;}catch{return u;}}
+
+// ── FILE QUEUE STATE ──
+let logFiles=[], gscFile=null;
+
+function addLogFiles(files){
+  for(const f of files)if(!logFiles.find(x=>x.name===f.name))logFiles.push(f);
+  renderLogList(); updateBtn();
+}
+function removeLog(name){logFiles=logFiles.filter(f=>f.name!==name);renderLogList();updateBtn();}
+function renderLogList(){
+  const c=document.getElementById('logFileList');c.innerHTML='';
+  logFiles.forEach(f=>{
+    const d=document.createElement('div');d.className='file-chip';
+    d.innerHTML=`<span>📄 ${f.name}</span><span class="chip-remove" onclick="removeLog('${f.name.replace(/'/g,"\\'")}')">×</span>`;
+    c.appendChild(d);
+  });
+}
+function addGSCFile(files){
+  if(files[0])gscFile=files[0];
+  const c=document.getElementById('gscChip');
+  c.innerHTML=gscFile?`<div class="file-chip"><span>📊 ${gscFile.name}</span><span class="chip-remove" onclick="removeGSC()">×</span></div>`:'';
+  updateBtn();
+}
+function removeGSC(){gscFile=null;document.getElementById('gscChip').innerHTML='';updateBtn();}
+function updateBtn(){
+  const btn=document.getElementById('processBtn');
+  const title=document.getElementById('processTitle');
+  if(logFiles.length){
+    btn.disabled=false;
+    title.textContent=logFiles.length+' log file'+(logFiles.length>1?'s':'')+' ready'+(gscFile?' + GSC':'');
+  }else{btn.disabled=true;title.textContent='Add log files above to continue';}
+}
+
+// ── WEB WORKER SOURCE (inlined as Blob so it works from a single HTML file) ──
+const WORKER_SRC = `
+const BOT_RULES=[
+  ['Googlebot',['Googlebot','Google-NotebookLM','Google-InspectionTool']],
+  ['Bingbot',['bingbot']],['Semrush',['SemrushBot','SiteAuditBot']],
+  ['Meta/Facebook',['meta-externalagent','facebookexternalhit']],
+  ['ChatGPT',['ChatGPT-User','GPTBot']],['Amazonbot',['Amazonbot','Amazon-Route53']],
+  ['UptimeRobot',['UptimeRobot']],['Uptime-Kuma',['Uptime-Kuma']],
+  ['DotBot',['DotBot']],['MJ12bot',['MJ12bot']],['AhrefsBot',['AhrefsBot']],
+  ['WPMU',['WPMU DEV']],['PetalBot',['PetalBot']],['YandexBot',['YandexBot']]
+];
+const MONTHS={Jan:1,Feb:2,Mar:3,Apr:4,May:5,Jun:6,Jul:7,Aug:8,Sep:9,Oct:10,Nov:11,Dec:12};
+const RES_EXTS=new Set(['.js','.css','.png','.jpg','.jpeg','.gif','.svg','.ico','.woff','.woff2','.ttf','.eot','.webp','.mp4','.pdf','.zip']);
+const LOG_RE=/^(\\S+) \\S+ \\S+ \\[([^\\]]+)\\] "(\\S+) (\\S+) [^"]*" (\\d+) \\S+ "[^"]*" "([^"]*)" \\(via ([^)]+)\\)/;
+
+function detectBot(ua){const l=ua.toLowerCase();for(const[n,kws]of BOT_RULES)for(const kw of kws)if(l.includes(kw.toLowerCase()))return n;return null;}
+function isRes(path){const p=path.split('?')[0];const d=p.lastIndexOf('.');return d!==-1&&RES_EXTS.has(p.slice(d).toLowerCase());}
+function parseTs(ts){
+  const sl=ts.indexOf('/');const sl2=ts.indexOf('/',sl+1);const col=ts.indexOf(':',sl2);
+  const d=ts.slice(0,sl),mo=ts.slice(sl+1,sl2),rest=ts.slice(sl2+1);
+  const yr=rest.slice(0,4),h=rest.slice(5,7),mi=rest.slice(8,10);
+  return yr+'-'+String(MONTHS[mo]||0).padStart(2,'0')+'-'+d.padStart(2,'0')+' '+h+':'+mi;
+}
+function pageType(path){const p=path.split('?')[0].replace(/^\\/+/,'').split('/');return p[0]?'/'+p[0]:'/';}
+
+// Chunked async line processor — yields every CHUNK_SIZE lines so the worker
+// event loop stays responsive and progress messages can be sent between chunks.
+const CHUNK_SIZE = 5000;
+
+self.onmessage = async function(e) {
+  const { files, fileIndex, totalFiles, raw: rawIn } = e.data;
+
+  // raw state is transferred as plain objects (Sets become arrays for transfer)
+  const raw = {
+    dates: new Set(rawIn.dates),
+    bots:  new Set(rawIn.bots),
+    botTotals: rawIn.botTotals,
+    pageHits:  rawIn.pageHits,
+    resHits:   rawIn.resHits,
+    hourly:    rawIn.hourly,
+    botPT:     rawIn.botPT,
+    pageSt:    rawIn.pageSt,
+    resSt:     rawIn.resSt,
+    urlStats:  rawIn.urlStats,
+    records:   rawIn.records,
+  };
+
+  for (let fi = 0; fi < files.length; fi++) {
+    const file = files[fi];
+    const globalFi = fileIndex + fi;
+    self.postMessage({ type:'log', msg:'Reading ' + file.name + ' (' + (file.size/1024/1024).toFixed(1) + ' MB)...' });
+
+    let text;
+    try {
+      text = await file.text();
+    } catch(err) {
+      self.postMessage({ type:'log', msg:'Error reading ' + file.name + ': ' + err.message });
+      continue;
+    }
+
+    // Split into lines
+    const lines = text.split('\\n');
+    text = null; // free memory ASAP
+    const total = lines.length;
+    let cnt = 0;
+
+    for (let i = 0; i < total; i++) {
+      // Yield every CHUNK_SIZE lines so worker stays responsive
+      if (i > 0 && i % CHUNK_SIZE === 0) {
+        const filePct = i / total;
+        const overallPct = 8 + Math.round(((globalFi + filePct) / totalFiles) * 86);
+        self.postMessage({
+          type: 'progress',
+          pct: overallPct,
+          label: 'Processing ' + file.name + ' — ' + Math.round(filePct*100) + '% (' + cnt.toLocaleString() + ' bot hits so far)'
+        });
+        // Give main thread a breath — tiny async pause
+        await new Promise(r => setTimeout(r, 0));
+      }
+
+      const line = lines[i];
+      if (!line) continue;
+      const m = LOG_RE.exec(line);
+      if (!m) continue;
+      const[,ip,ts,,path,status,,ua]=m;
+      const bot = detectBot(ua); if (!bot) continue;
+      const tsp = parseTs(ts), day = tsp.slice(0,10), hour = tsp.slice(0,13);
+      const res = isRes(path), pt = pageType(path);
+      const url = 'https://www.bacancytechnology.com' + path.split('?')[0];
+
+      raw.dates.add(day); raw.bots.add(bot);
+      raw.botTotals[bot] = (raw.botTotals[bot]||0) + 1;
+      if (!raw.hourly[hour]) raw.hourly[hour] = {};
+      raw.hourly[hour][bot] = (raw.hourly[hour][bot]||0) + 1;
+
+      if (!res) {
+        raw.pageHits++;
+        raw.pageSt[status] = (raw.pageSt[status]||0) + 1;
+        if (!raw.botPT[bot]) raw.botPT[bot] = {};
+        raw.botPT[bot][pt] = (raw.botPT[bot][pt]||0) + 1;
+        if (!raw.urlStats[url]) raw.urlStats[url] = {total:0,statuses:{},bots:{},t0:tsp,t1:tsp};
+        const us = raw.urlStats[url]; us.total++;
+        us.statuses[status] = (us.statuses[status]||0) + 1;
+        us.bots[bot] = (us.bots[bot]||0) + 1;
+        if (tsp < us.t0) us.t0 = tsp; if (tsp > us.t1) us.t1 = tsp;
+      } else {
+        raw.resHits++;
+        raw.resSt[status] = (raw.resSt[status]||0) + 1;
+      }
+
+      raw.records.push({ts:tsp, bot, type:res?'resource':'page', status, path:path.slice(0,100)});
+      if (raw.records.length > 3000) raw.records.splice(0, 1000);
+      cnt++;
+    }
+
+    self.postMessage({ type:'log', msg: file.name + ': ' + cnt.toLocaleString() + ' bot records' });
+  }
+
+  // Send finished raw state back (convert Sets to arrays for structured-clone)
+  self.postMessage({
+    type: 'done',
+    raw: {
+      dates:     [...raw.dates],
+      bots:      [...raw.bots],
+      botTotals: raw.botTotals,
+      pageHits:  raw.pageHits,
+      resHits:   raw.resHits,
+      hourly:    raw.hourly,
+      botPT:     raw.botPT,
+      pageSt:    raw.pageSt,
+      resSt:     raw.resSt,
+      urlStats:  raw.urlStats,
+      records:   raw.records,
+    }
+  });
+};
+`;
+
+// ── PROCESSING ──
+let DATA=null, charts={}, ST={dateFrom:'',dateTo:'',bot:'all',activeBots:new Set(),urlSort:{key:'hits',dir:'desc'},urlPage:1,PS:50};
+
+async function startProcessing(){
+  document.getElementById('processBtn').disabled=true;
+  document.getElementById('progressWrap').style.display='block';
+  setP(0,'Starting...');
+
+  // ── Step 1: optional GSC file (fast, keep on main thread) ──
+  const gscData = {};
+  if(gscFile){
+    setP(3,'Loading GSC data...');
+    try{
+      const parsed = await parseGSC(gscFile);
+      Object.assign(gscData, parsed);
+      addLog('GSC: '+Object.keys(gscData).length+' pages loaded');
+    }catch(e){addLog('GSC error: '+e.message);}
+  }
+
+  // ── Step 2: spin up Web Worker for heavy log parsing ──
+  setP(6,'Preparing parser worker...');
+  const workerBlob = new Blob([WORKER_SRC], {type:'application/javascript'});
+  const workerURL  = URL.createObjectURL(workerBlob);
+
+  const rawResult = await new Promise((resolve, reject) => {
+    const worker = new Worker(workerURL);
+
+    // Send all files at once with the initial empty raw state
+    worker.postMessage({
+      files:      logFiles,
+      fileIndex:  0,
+      totalFiles: logFiles.length,
+      raw: {
+        dates:[], bots:[], botTotals:{}, pageHits:0, resHits:0,
+        hourly:{}, botPT:{}, pageSt:{}, resSt:{}, urlStats:{}, records:[]
+      }
+    });
+
+    worker.onmessage = (e) => {
+      const d = e.data;
+      if (d.type === 'progress') {
+        setP(d.pct, d.label);
+      } else if (d.type === 'log') {
+        addLog(d.msg);
+      } else if (d.type === 'done') {
+        worker.terminate();
+        URL.revokeObjectURL(workerURL);
+        resolve(d.raw);
+      }
+    };
+
+    worker.onerror = (err) => {
+      worker.terminate();
+      URL.revokeObjectURL(workerURL);
+      reject(err);
+    };
+  });
+
+  // ── Step 3: build final dataset on main thread (fast aggregation, no line parsing) ──
+  setP(96,'Building dataset...');
+  await tick();
+
+  const raw = rawResult;
+  const allDates = [...raw.dates].sort();
+  const allBots  = [...raw.bots].sort();
+
+  const hourlyList = Object.entries(raw.hourly)
+    .sort((a,b)=>a[0].localeCompare(b[0]))
+    .map(([hour,bots])=>({hour,...bots}));
+
+  const tl10={};
+  raw.records.forEach(r=>{
+    const s=r.ts.slice(0,14)+'0';
+    if(!tl10[s])tl10[s]={time:s,total:0};
+    tl10[s].total++; tl10[s][r.bot]=(tl10[s][r.bot]||0)+1;
+  });
+  const tlList=Object.values(tl10).sort((a,b)=>a.time.localeCompare(b.time));
+
+  const ptCounts={};
+  Object.values(raw.botPT).forEach(m=>Object.entries(m).forEach(([pt,c])=>{ptCounts[pt]=(ptCounts[pt]||0)+c;}));
+  const cleanPT=Object.entries(ptCounts)
+    .filter(([pt])=>/^\/[a-zA-Z]/.test(pt)&&pt.length<30&&pt!=='/robots.txt')
+    .sort((a,b)=>b[1]-a[1]).slice(0,20).map(e=>e[0]);
+
+  raw.records.sort((a,b)=>b.ts.localeCompare(a.ts));
+
+  const urlTable=Object.entries(raw.urlStats).map(([url,s])=>{
+    let span=0;
+    if(s.t0!==s.t1){
+      const d0=new Date(s.t0.replace(' ','T')+':00Z');
+      const d1=new Date(s.t1.replace(' ','T')+':00Z');
+      span=Math.round((d1-d0)/60000);
+    }
+    const topSt=Object.entries(s.statuses).sort((a,b)=>b[1]-a[1])[0]?.[0]||'—';
+    return{url,hits:s.total,statuses:s.statuses,top_status:topSt,bots:s.bots,crawl_span_mins:span};
+  }).sort((a,b)=>b.hits-a.hits);
+
+  DATA={
+    allDates,allBots,botTotals:raw.botTotals,
+    pageHits:raw.pageHits,resHits:raw.resHits,
+    hourlyList,botPT:raw.botPT,cleanPT,
+    pageSt:raw.pageSt,resSt:raw.resSt,
+    tlList,records:raw.records.slice(0,1000),
+    urlTable:urlTable.slice(0,2000),gsc:gscData
+  };
+
+  setP(100,'Done! '+raw.pageHits.toLocaleString()+' page hits across '+allDates.length+' days.');
+  addLog('Complete — '+allBots.length+' bots detected, '+urlTable.length+' unique URLs.');
+  await new Promise(r=>setTimeout(r,700));
+  showDashboard();
+}
+
+async function parseGSC(file){
+  const buf=await file.arrayBuffer();
+  const XLSX=await import('https://cdnjs.cloudflare.com/ajax/libs/xlsx/0.18.5/xlsx.mjs');
+  const wb=XLSX.read(buf,{type:'array'});
+  const sn=wb.SheetNames.find(n=>n.toLowerCase()==='pages')||wb.SheetNames[0];
+  const result={};
+  XLSX.utils.sheet_to_json(wb.Sheets[sn]).forEach(row=>{
+    const url=(row['Top pages']||row['Page']||row['URL']||'').trim();
+    if(url)result[url]={clicks:parseInt(row['Clicks'])||0,impressions:parseInt(row['Impressions'])||0,ctr:parseFloat(row['CTR'])||0,position:parseFloat(row['Position'])||0};
+  });
+  return result;
+}
+
+function setP(pct,label){document.getElementById('progBar').style.width=pct+'%';document.getElementById('progLabel').textContent=label;}
+function addLog(msg){const el=document.getElementById('progLog');el.innerHTML+=msg+'<br>';el.scrollTop=el.scrollHeight;}
+function tick(){return new Promise(r=>setTimeout(r,10));}
+
+// ── DASHBOARD INIT ──
+function showDashboard(){
+  document.getElementById('uploadScreen').style.display='none';
+  document.getElementById('dashboard').style.display='block';
+  ST.dateFrom=DATA.allDates[0];
+  ST.dateTo=DATA.allDates[DATA.allDates.length-1];
+  ST.activeBots=new Set(DATA.allBots);
+  ST.bot='all';
+  document.getElementById('dateFrom').value=ST.dateFrom;
+  document.getElementById('dateTo').value=ST.dateTo;
+  document.getElementById('rangeDisplay').textContent=ST.dateFrom+' → '+ST.dateTo;
+  document.getElementById('headerStatus').textContent=DATA.allDates.length+' days · '+DATA.allBots.length+' bots detected';
+
+  const botOpts=[['all','All Bots'],['others','Others'],...DATA.allBots.map(b=>[b,b])];
+  ['botSelect','ptBot','tlBot'].forEach(id=>{
+    const sel=document.getElementById(id);if(!sel)return;
+    sel.innerHTML='';botOpts.forEach(([v,l])=>{const o=document.createElement('option');o.value=v;o.textContent=l;sel.appendChild(o);});
+  });
+  const ptSel=document.getElementById('ptFilter');ptSel.innerHTML='<option value="all">All Page Types</option>';
+  DATA.cleanPT.forEach(pt=>{const o=document.createElement('option');o.value=pt;o.textContent=pt;ptSel.appendChild(o);});
+
+  renderAll();
+}
+
+function goBack(){
+  DATA=null;charts={};
+  document.getElementById('uploadScreen').style.display='block';
+  document.getElementById('dashboard').style.display='none';
+  document.getElementById('progressWrap').style.display='none';
+  document.getElementById('headerStatus').textContent='No files loaded';
+}
+
+// ── FILTER HELPERS ──
+function filtHours(){return DATA.hourlyList.filter(h=>h.hour.slice(0,10)>=ST.dateFrom&&h.hour.slice(0,10)<=ST.dateTo);}
+function filtTL(){return DATA.tlList.filter(t=>t.time.slice(0,10)>=ST.dateFrom&&t.time.slice(0,10)<=ST.dateTo);}
+
+// ── SUMMARY ──
+function renderSummary(){
+  const hours=filtHours();let total=0;const bs=new Set();
+  hours.forEach(h=>DATA.allBots.forEach(b=>{if(ST.bot!=='all'&&b!==ST.bot)return;const v=h[b]||0;total+=v;if(v>0)bs.add(b);}));
+  const rp=DATA.pageHits/(DATA.pageHits+DATA.resHits)||0;
+  document.getElementById('totPages').textContent=Math.round(total*rp).toLocaleString();
+  document.getElementById('totRes').textContent=Math.round(total*(1-rp)).toLocaleString();
+  document.getElementById('totBots').textContent=bs.size;
+  const days=DATA.allDates.filter(d=>d>=ST.dateFrom&&d<=ST.dateTo);
+  document.getElementById('totDays').textContent=days.length;
+  document.getElementById('dateSpan').textContent=ST.dateFrom+' → '+ST.dateTo;
+  const sums={};hours.forEach(h=>DATA.allBots.forEach(b=>{sums[b]=(sums[b]||0)+(h[b]||0);}));
+  const top=Object.entries(sums).sort((a,b)=>b[1]-a[1])[0]||['—',0];
+  document.getElementById('topBot').textContent=top[0];
+  document.getElementById('topBotCount').textContent=top[1]?top[1].toLocaleString()+' hits':'—';
+}
+
+// ── BOT PILLS ──
+function renderPills(){
+  const c=document.getElementById('botPills');c.innerHTML='';
+  DATA.allBots.forEach(bot=>{
+    const p=document.createElement('span');p.className='bot-pill'+(ST.activeBots.has(bot)?' active':'');
+    p.style.setProperty('--pill-c',botColor(bot));p.textContent=bot;
+    p.onclick=()=>{if(ST.activeBots.has(bot)){if(ST.activeBots.size>1)ST.activeBots.delete(bot);}else ST.activeBots.add(bot);renderPills();renderLineChart();};
+    c.appendChild(p);
+  });
+}
+function selectAll(){ST.activeBots=new Set(DATA.allBots);renderPills();renderLineChart();}
+function deselectAll(){ST.activeBots=new Set([DATA.allBots[0]]);renderPills();renderLineChart();}
+
+// ── LINE CHART ──
+function renderLineChart(){
+  const hours=filtHours(),show=DATA.allBots.filter(b=>ST.activeBots.has(b));
+  const ctx=document.getElementById('chartLine').getContext('2d');
+  if(charts.line)charts.line.destroy();
+  charts.line=new Chart(ctx,{
+    type:'line',
+    data:{labels:hours.map(h=>h.hour.replace(' ','\n')),datasets:show.map(bot=>({label:bot,data:hours.map(h=>h[bot]||0),borderColor:botColor(bot),backgroundColor:botColor(bot)+'18',borderWidth:2,pointRadius:hours.length>48?0:3,pointHoverRadius:5,fill:false,tension:0.3}))},
+    options:{responsive:true,maintainAspectRatio:false,interaction:{mode:'index',intersect:false},plugins:{legend:{display:false},tooltip:{backgroundColor:'#1A1A1A',borderColor:'rgba(255,255,255,0.1)',borderWidth:1,titleColor:'#fff',bodyColor:'rgba(255,255,255,0.7)'}},scales:{x:{grid:{color:'rgba(255,255,255,0.04)'},ticks:{color:'rgba(255,255,255,0.35)',maxTicksLimit:14,font:{size:10}}},y:{grid:{color:'rgba(255,255,255,0.04)'},ticks:{color:'rgba(255,255,255,0.4)',font:{size:10}}}}}
+  });
+  const leg=document.getElementById('chartLegend');leg.innerHTML='';
+  show.forEach(bot=>{const el=document.createElement('div');el.className='legend-item';el.innerHTML=`<div class="legend-dot" style="background:${botColor(bot)}"></div><span>${bot}</span>`;leg.appendChild(el);});
+}
+
+// ── BAR CHART ──
+function renderPageType(){
+  const sb=document.getElementById('ptBot').value,sp=document.getElementById('ptFilter').value;
+  const res={};const bots=sb==='all'?DATA.allBots:[sb];
+  bots.forEach(b=>{const m=DATA.botPT[b]||{};Object.entries(m).forEach(([pt,c])=>{if(sp!=='all'&&pt!==sp)return;res[pt]=(res[pt]||0)+c;});});
+  const sorted=Object.entries(res).filter(e=>e[1]>0).sort((a,b)=>b[1]-a[1]).slice(0,20);
+  const ctx=document.getElementById('chartBar').getContext('2d');
+  if(charts.bar)charts.bar.destroy();
+  charts.bar=new Chart(ctx,{
+    type:'bar',
+    data:{labels:sorted.map(e=>e[0]),datasets:[{label:'Bot Hits',data:sorted.map(e=>e[1]),backgroundColor:sorted.map((_,i)=>`hsl(${24+i*17},80%,${58-i*1.2}%)`),borderRadius:4,borderSkipped:false}]},
+    options:{responsive:true,maintainAspectRatio:false,indexAxis:'y',plugins:{legend:{display:false},tooltip:{backgroundColor:'#1A1A1A',borderColor:'rgba(255,255,255,0.1)',borderWidth:1,titleColor:'#fff',bodyColor:'rgba(255,255,255,0.7)'}},scales:{x:{grid:{color:'rgba(255,255,255,0.04)'},ticks:{color:'rgba(255,255,255,0.4)',font:{size:10}}},y:{grid:{display:false},ticks:{color:'rgba(255,255,255,0.65)',font:{size:11}}}}}
+  });
+}
+
+// ── STATUS BARS ──
+function renderStatus(id,obj){
+  const c=document.getElementById(id);c.innerHTML='';
+  const entries=Object.entries(obj).sort((a,b)=>b[1]-a[1]);
+  if(!entries.length){c.innerHTML='<div class="empty-state">No data</div>';return;}
+  const mx=Math.max(...entries.map(e=>e[1]));
+  entries.forEach(([code,count])=>{
+    const pct=(count/mx*100).toFixed(1),col=scColor(code);
+    const d=document.createElement('div');d.className='status-row-item';
+    d.innerHTML=`<span class="status-code" style="color:${col}">${code}</span><div class="status-bar-track"><div class="status-bar-fill" style="width:${pct}%;background:${col}"></div></div><span class="status-count">${count.toLocaleString()}</span>`;
+    c.appendChild(d);
+  });
+}
+
+// ── TIMELINE CHART ──
+function renderTimeline(){
+  const tl=filtTL(),fb=ST.bot;
+  const ctx=document.getElementById('chartTimeline').getContext('2d');
+  if(charts.tl)charts.tl.destroy();
+  charts.tl=new Chart(ctx,{
+    type:'line',
+    data:{labels:tl.map(t=>t.time),datasets:[{label:fb==='all'?'Total Bot Hits':fb,data:tl.map(t=>fb==='all'?(t.total||0):(t[fb]||0)),borderColor:'#F06F21',backgroundColor:'rgba(240,111,33,0.1)',borderWidth:2,pointRadius:0,fill:true,tension:0.3}]},
+    options:{responsive:true,maintainAspectRatio:false,plugins:{legend:{display:false},tooltip:{backgroundColor:'#1A1A1A',borderColor:'rgba(255,255,255,0.1)',borderWidth:1,titleColor:'#fff',bodyColor:'rgba(255,255,255,0.7)'}},scales:{x:{grid:{color:'rgba(255,255,255,0.04)'},ticks:{color:'rgba(255,255,255,0.35)',maxTicksLimit:16,font:{size:10}}},y:{grid:{color:'rgba(255,255,255,0.04)'},ticks:{color:'rgba(255,255,255,0.4)',font:{size:10}}}}}
+  });
+}
+
+// ── URL TABLE ──
+function getURLRows(){
+  const search=(document.getElementById('urlSearch').value||'').toLowerCase();
+  const sf=document.getElementById('urlStatus').value;
+  let rows=DATA.urlTable.filter(r=>{
+    if(search&&!r.url.toLowerCase().includes(search))return false;
+    if(sf!=='all'){if(sf==='500+'){if(!Object.keys(r.statuses||{}).some(s=>parseInt(s)>=500))return false;}else{if(!(r.statuses||{})[sf])return false;}}
+    return true;
+  });
+  const{key,dir}=ST.urlSort;
+  rows.sort((a,b)=>{
+    let av,bv;
+    if(key==='clicks'){av=(DATA.gsc[a.url]||{}).clicks||0;bv=(DATA.gsc[b.url]||{}).clicks||0;}
+    else if(key==='impressions'){av=(DATA.gsc[a.url]||{}).impressions||0;bv=(DATA.gsc[b.url]||{}).impressions||0;}
+    else if(key==='position'){av=(DATA.gsc[a.url]||{}).position||999;bv=(DATA.gsc[b.url]||{}).position||999;}
+    else{av=a[key]||0;bv=b[key]||0;}
+    return dir==='desc'?bv-av:av-bv;
+  });
+  return rows;
+}
+function sortTable(key){
+  if(ST.urlSort.key===key)ST.urlSort.dir=ST.urlSort.dir==='desc'?'asc':'desc';else{ST.urlSort.key=key;ST.urlSort.dir='desc';}
+  ST.urlPage=1;
+  ['url','hits','clicks','impressions','position','crawl_span_mins'].forEach(k=>{const el=document.getElementById('sa-'+k);if(!el)return;if(k===ST.urlSort.key){el.textContent=ST.urlSort.dir==='desc'?'▼':'▲';el.classList.add('on');}else{el.textContent='';el.classList.remove('on');}});
+  renderURLTable();
+}
+function renderURLTable(){
+  const rows=getURLRows(),total=rows.length,pages=Math.ceil(total/ST.PS)||1;
+  if(ST.urlPage>pages)ST.urlPage=1;
+  const start=(ST.urlPage-1)*ST.PS;
+  const tbody=document.getElementById('urlBody');tbody.innerHTML='';
+  if(!rows.length){tbody.innerHTML='<tr><td colspan="7" class="empty-state">No results</td></tr>';return;}
+  rows.slice(start,start+ST.PS).forEach(r=>{
+    const gsc=DATA.gsc[r.url]||DATA.gsc[r.url+'/']||{};const sc=scColor(r.top_status);
+    const tr=document.createElement('tr');
+    tr.innerHTML=`<td style="max-width:300px;overflow:hidden;text-overflow:ellipsis;white-space:nowrap"><a href="${r.url}" target="_blank" style="color:var(--text-dim);text-decoration:none;font-size:11px" title="${r.url}">${urlPath(r.url)}</a></td><td style="font-weight:700;color:var(--orange)">${fmtN(r.hits)}</td><td><span style="color:${sc};font-weight:800">${r.top_status}</span></td><td>${gsc.clicks!=null?fmtN(gsc.clicks):'<span style="color:var(--text-muted)">—</span>'}</td><td>${gsc.impressions!=null?fmtN(gsc.impressions):'<span style="color:var(--text-muted)">—</span>'}</td><td>${gsc.position!=null?gsc.position.toFixed(1):'<span style="color:var(--text-muted)">—</span>'}</td><td style="color:var(--text-dim);font-size:11px">${crawlStr(r.crawl_span_mins)}</td>`;
+    tbody.appendChild(tr);
+  });
+  const pg=document.getElementById('urlPages');pg.innerHTML=`<span class="page-info">Showing ${start+1}–${Math.min(start+ST.PS,total)} of ${total.toLocaleString()}</span>`;
+  const maxShow=Math.min(pages,8);
+  for(let i=1;i<=maxShow;i++){const btn=document.createElement('button');btn.className='page-btn'+(i===ST.urlPage?' active':'');btn.textContent=i;const _i=i;btn.onclick=()=>{ST.urlPage=_i;renderURLTable();};pg.appendChild(btn);}
+  if(pages>maxShow){const sp=document.createElement('span');sp.className='page-info';sp.textContent='...';pg.appendChild(sp);const lb=document.createElement('button');lb.className='page-btn'+(pages===ST.urlPage?' active':'');lb.textContent=pages;lb.onclick=()=>{ST.urlPage=pages;renderURLTable();};pg.appendChild(lb);}
+}
+
+// ── ACTIVITY TABLE ──
+function renderActivity(){
+  const bf=document.getElementById('tlBot').value,tf=document.getElementById('tlType').value;
+  let rows=DATA.records||[];
+  if(bf!=='all')rows=rows.filter(r=>r.bot===bf);
+  if(tf!=='all')rows=rows.filter(r=>r.type===tf);
+  const tbody=document.getElementById('activityBody');tbody.innerHTML='';
+  if(!rows.length){tbody.innerHTML='<tr><td colspan="5" class="empty-state">No data</td></tr>';return;}
+  rows.slice(0,200).forEach(r=>{
+    const sc=scColor(r.status);const tr=document.createElement('tr');
+    tr.innerHTML=`<td style="color:var(--text-muted);white-space:nowrap;font-size:11px">${r.ts}</td><td><span style="color:${botColor(r.bot)};font-weight:700;font-size:11px">${r.bot}</span></td><td><span class="badge badge-${r.type}">${r.type}</span></td><td><span style="color:${sc};font-weight:800">${r.status}</span></td><td style="color:var(--text-dim);font-size:11px;max-width:340px;overflow:hidden;text-overflow:ellipsis;white-space:nowrap" title="${r.path}">${r.path}</td>`;
+    tbody.appendChild(tr);
+  });
+}
+
+// ── EXPORT EXCEL ──
+async function exportExcel(){
+  const btn=document.getElementById('exportBtn');btn.textContent='⏳ Exporting...';btn.disabled=true;
+  try{
+    const XLSX=await import('https://cdnjs.cloudflare.com/ajax/libs/xlsx/0.18.5/xlsx.mjs');
+    const rows=getURLRows();
+    const ws1=[['URL','Bot Hits','Top Status','Clicks (GSC)','Impressions (GSC)','Avg Position (GSC)','Crawl Span']];
+    rows.forEach(r=>{const g=DATA.gsc[r.url]||DATA.gsc[r.url+'/']||{};ws1.push([r.url,r.hits,r.top_status,g.clicks??'',g.impressions??'',g.position!=null?+g.position.toFixed(1):'',crawlStr(r.crawl_span_mins)]);});
+    const sheet1=XLSX.utils.aoa_to_sheet(ws1);sheet1['!cols']=[{wch:60},{wch:10},{wch:10},{wch:12},{wch:14},{wch:14},{wch:14}];
+    const ws2=[['Report Generated',new Date().toLocaleString()],['Date Range',ST.dateFrom+' to '+ST.dateTo],['Page Hits',DATA.pageHits],['Resource Hits',DATA.resHits],['Unique Bots',DATA.allBots.length],['Days',DATA.allDates.length],[''],['Bot','Total Hits'],...DATA.allBots.map(b=>[b,DATA.botTotals[b]||0])];
+    const sheet2=XLSX.utils.aoa_to_sheet(ws2);sheet2['!cols']=[{wch:30},{wch:20}];
+    const wb=XLSX.utils.book_new();XLSX.utils.book_append_sheet(wb,sheet1,'URL Intelligence');XLSX.utils.book_append_sheet(wb,sheet2,'Summary');
+    XLSX.writeFile(wb,'bot-report-'+ST.dateFrom+'-'+ST.dateTo+'.xlsx');
+  }catch(e){alert('Export failed: '+e.message);}
+  btn.textContent='⬇ Export Excel';btn.disabled=false;
+}
+
+// ── FILTER CONTROLS ──
+function applyDateFilter(){ST.dateFrom=document.getElementById('dateFrom').value;ST.dateTo=document.getElementById('dateTo').value;document.getElementById('rangeDisplay').textContent=ST.dateFrom+' → '+ST.dateTo;renderAll();}
+function applyBotFilter(){ST.bot=document.getElementById('botSelect').value;renderAll();}
+function resetDateFilter(){ST.dateFrom=DATA.allDates[0];ST.dateTo=DATA.allDates[DATA.allDates.length-1];document.getElementById('dateFrom').value=ST.dateFrom;document.getElementById('dateTo').value=ST.dateTo;document.getElementById('rangeDisplay').textContent=ST.dateFrom+' → '+ST.dateTo;renderAll();}
+function resetBotFilter(){ST.bot='all';document.getElementById('botSelect').value='all';renderAll();}
+
+function renderAll(){renderSummary();renderPills();renderLineChart();renderPageType();renderStatus('pageStatus',DATA.pageSt);renderStatus('resStatus',DATA.resSt);renderTimeline();renderURLTable();renderActivity();}
+</script>
+</body>
+</html>
